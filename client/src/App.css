@@ -1,0 +1,8 @@
+.checkout-date {
+  background-color: #90ee90 !important; /* 연한 초록색 */
+  color: black !important;
+}
+
+.checkout-date:hover {
+  background-color: #78c978 !important;
+}

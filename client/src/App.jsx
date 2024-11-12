@@ -24,9 +24,33 @@ function App() {
     fetchReservations();
   }, []);
 
+  const tileDisabled = ({ date }) => {
+    return reservations.some((reservation) => {
+      const checkinDate = new Date(reservation.checkin);
+      return (
+        date.getDate() === checkinDate.getDate() &&
+        date.getMonth() === checkinDate.getMonth() &&
+        date.getFullYear() === checkinDate.getFullYear()
+      );
+    });
+  };
+
+  const tileClassName = ({ date }) => {
+    const isCheckoutDate = reservations.some((reservation) => {
+      const checkoutDate = new Date(reservation.checkout);
+      return (
+        date.getDate() === checkoutDate.getDate() &&
+        date.getMonth() === checkoutDate.getMonth() &&
+        date.getFullYear() === checkoutDate.getFullYear()
+      );
+    });
+
+    return isCheckoutDate ? "checkout-date" : "";
+  };
+
   return (
     <>
-      <Calendar />
+      <Calendar tileDisabled={tileDisabled} tileClassName={tileClassName} />
       <ul>
         {reservations.map((reservation, index) => (
           <li key={index}>
