@@ -1,13 +1,14 @@
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
-const url =
-  "mongodb+srv://lllllls189:1234@dabat.robui.mongodb.net/?retryWrites=true&w=majority&appName=dabat";
+const reservationRoutes = require("./reservationRoute"); // 라우터 가져오기
 
 const app = express();
 
 app.use(cors());
 app.use(morgan("dev"));
+
+app.use("/api", reservationRoutes); // '/api' 경로에 라우터 연결
 
 app.use((req, res) => {
   res.status(404).json({ message: "Not Found" });
