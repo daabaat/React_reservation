@@ -1,6 +1,17 @@
 import { useState, useEffect } from "react";
+import { BrowserRouter as Router, Route, Routes, Link } from "react-router-dom";
 import Calendar from "react-calendar/dist/cjs/Calendar.js";
 import "react-calendar/dist/Calendar.css";
+import LoginForm from "./components/LoginForm";
+import {
+  fetchReservations,
+  createReservation,
+  deleteReservation,
+  updateReservation,
+} from "./api/reservationApi";
+import { fetchTimeSlots } from "./api/timeSlotApi";
+import { fetchAccommodations } from "./api/accommodationApi";
+import { fetchUsers } from "./api/userApi";
 
 import "./App.css";
 
@@ -14,86 +25,31 @@ function App() {
   const [accommodations, setAccommodations] = useState([]);
   const [users, setUsers] = useState([]);
 
-  const fetchAccommodations = async () => {
-    const response = await fetch("http://localhost:8080/accommodations");
-    const data = await response.json();
-    setAccommodations(data);
-    console.log(data);
-  };
-
-  useEffect(() => {
-    fetchAccommodations();
-  }, []);
-
-  const fetchUsers = async () => {
-    const response = await fetch("http://localhost:8080/users");
-    const data = await response.json();
-    setUsers(data);
-    console.log(data);
-  };
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchData = async () => {
+  const loadAccommodations = async () => {
     try {
-      const reservationsResponse = await fetch(
-        "http://localhost:8080/reservations"
-      );
-      if (!reservationsResponse.ok) {
-        throw new Error("Network response was not ok");
-      }
-      const reservationsData = await reservationsResponse.json();
-      setReservations(reservationsData);
-
-      const timeSlotsResponse = await fetch("http://localhost:8080/timeslots");
-      if (!timeSlotsResponse.ok) {
-        throw new Error("Network response was not ok");
-      }
-      const timeSlotsData = await timeSlotsResponse.json();
-      setTimeSlots(timeSlotsData);
+      const data = await fetchAccommodations();
+      setAccommodations(data);
+      console.log("숙소 데이터:", data);
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error("숙소 데이터 조회 실패:", error);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      const data = await fetchUsers();
+      setUsers(data);
+      console.log("사용자 데이터:", data);
+    } catch (error) {
+      console.error("사용자 데이터 조회 실패:", error);
     }
   };
 
   useEffect(() => {
+    loadAccommodations();
+    loadUsers();
     fetchData();
   }, []);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    try {
-      const response = await fetch(
-        "http://localhost:8080/reservations/create",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            startDate: checkin,
-            endDate: checkout,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "예약 생성에 실패했습니다.");
-      }
-
-      await fetchData();
-      setCheckin("");
-      setCheckout("");
-      alert("예약이 성공적으로 생성되었습니다.");
-    } catch (error) {
-      console.error("Error creating reservation:", error);
-      alert(error.message);
-    }
-  };
 
   const tileDisabled = ({ date }) => {
     try {
@@ -139,44 +95,41 @@ function App() {
     }
   };
 
+  const fetchData = async () => {
+    try {
+      const [reservationsData, timeSlotsData] = await Promise.all([
+        fetchReservations(),
+        fetchTimeSlots(),
+      ]);
+
+      setReservations(reservationsData);
+      setTimeSlots(timeSlotsData);
+    } catch (error) {
+      alert("데이터 조회에 실패했습니다");
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await createReservation(checkin, checkout);
+      await fetchData();
+      setCheckin("");
+      setCheckout("");
+      alert("예약이 성공적으로 생성되었습니다");
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
   const handleDelete = async (id) => {
     const confirmDelete = window.confirm("예약을 삭제하시겠습니까?");
     if (confirmDelete) {
       try {
-        const response = await fetch(
-          `http://localhost:8080/reservations/delete/${id}`,
-          {
-            method: "DELETE",
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error("예약 삭제에 실패했습니다.");
-        }
-
-        // TimeSlot 데이터를 먼저 업데이트
-        const timeSlotsResponse = await fetch(
-          "http://localhost:8080/timeslots"
-        );
-        if (!timeSlotsResponse.ok) {
-          throw new Error("TimeSlot 데이터를 가져오는데 실패했습니다.");
-        }
-        const timeSlotsData = await timeSlotsResponse.json();
-        setTimeSlots(timeSlotsData);
-
-        // 예약 데이터도 업데이트
-        const reservationsResponse = await fetch(
-          "http://localhost:8080/reservations"
-        );
-        if (!reservationsResponse.ok) {
-          throw new Error("예약 데이터를 가져오는데 실패했습니다.");
-        }
-        const reservationsData = await reservationsResponse.json();
-        setReservations(reservationsData);
-
-        alert("예약이 삭제되었습니다.");
+        await deleteReservation(id);
+        await fetchData();
+        alert("예약이 삭제되었습니다");
       } catch (error) {
-        console.error("Error deleting reservation:", error);
         alert(error.message);
       }
     }
@@ -220,91 +173,95 @@ function App() {
     const confirmUpdate = window.confirm("해당 날짜로 수정하시겠습니까?");
     if (confirmUpdate) {
       try {
-        const response = await fetch(
-          `http://localhost:8080/reservations/update/${updateId}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              startDate: checkin,
-              endDate: checkout,
-            }),
-          }
-        );
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message);
-        }
-
+        await updateReservation(updateId, checkin, checkout);
         await fetchData();
         setIsUpdating(false);
         setUpdateId(null);
         setCheckin("");
         setCheckout("");
-        alert("예약이 수정되었습니다.");
+        alert("예약이 수정되었습니다");
       } catch (error) {
-        console.error("Error updating reservation:", error);
         alert(error.message);
       }
     }
   };
 
   return (
-    <>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="date"
-          value={checkin}
-          onChange={(e) => setCheckin(e.target.value)}
-          required
-        />
-        <input
-          type="date"
-          value={checkout}
-          onChange={(e) => setCheckout(e.target.value)}
-          required
-        />
-        <button type="submit">예약하기</button>
-      </form>
-      <Calendar tileDisabled={tileDisabled} tileClassName={tileClassName} />
-      {isUpdating && (
-        <div>
-          <h3>체크인 날짜를 선택해주세요</h3>
-          <Calendar
-            onChange={(date) => handleDateChange(date, true)}
-            value={checkin ? new Date(checkin) : null}
+    <Router>
+      <div>
+        <nav>
+          <Link to="/login">
+            <button>로그인</button>
+          </Link>
+        </nav>
+
+        <Routes>
+          <Route path="/login" element={<LoginForm />} />
+          <Route
+            path="/"
+            element={
+              <>
+                <form onSubmit={handleSubmit}>
+                  <input
+                    type="date"
+                    value={checkin}
+                    onChange={(e) => setCheckin(e.target.value)}
+                    required
+                  />
+                  <input
+                    type="date"
+                    value={checkout}
+                    onChange={(e) => setCheckout(e.target.value)}
+                    required
+                  />
+                  <button type="submit">예약하기</button>
+                </form>
+                <Calendar
+                  tileDisabled={tileDisabled}
+                  tileClassName={tileClassName}
+                />
+                {isUpdating && (
+                  <div>
+                    <h3>체크인 날짜를 선택해주세요</h3>
+                    <Calendar
+                      onChange={(date) => handleDateChange(date, true)}
+                      value={checkin ? new Date(checkin) : null}
+                    />
+                    <div>
+                      <h4>체크아웃 날짜 선택</h4>
+                      <Calendar
+                        onChange={(date) => handleDateChange(date, false)}
+                        value={checkout ? new Date(checkout) : null}
+                        minDate={checkin ? new Date(checkin) : null} // 체크인 날짜 이후만 선택 가능
+                      />
+                    </div>
+                    {checkin && checkout && (
+                      <button onClick={handleConfirmUpdate}>수정하기</button>
+                    )}
+                  </div>
+                )}
+                <ul>
+                  {reservations.map((reservation) => (
+                    <li key={reservation._id}>
+                      체크인:{" "}
+                      {new Date(reservation.startDate).toLocaleDateString()} PM
+                      ~ 체크아웃:{" "}
+                      {new Date(reservation.endDate).toLocaleDateString()} AM
+                      <button onClick={() => handleDelete(reservation._id)}>
+                        삭제하기
+                      </button>
+                      <button onClick={() => handleUpdate(reservation._id)}>
+                        수정하기
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            }
           />
-          <div>
-            <h4>체크아웃 날짜 선택</h4>
-            <Calendar
-              onChange={(date) => handleDateChange(date, false)}
-              value={checkout ? new Date(checkout) : null}
-              minDate={checkin ? new Date(checkin) : null} // 체크인 날짜 이후만 선택 가능
-            />
-          </div>
-          {checkin && checkout && (
-            <button onClick={handleConfirmUpdate}>수정하기</button>
-          )}
-        </div>
-      )}
-      <ul>
-        {reservations.map((reservation) => (
-          <li key={reservation._id}>
-            체크인: {new Date(reservation.startDate).toLocaleDateString()} PM ~
-            체크아웃: {new Date(reservation.endDate).toLocaleDateString()} AM
-            <button onClick={() => handleDelete(reservation._id)}>
-              삭제하기
-            </button>
-            <button onClick={() => handleUpdate(reservation._id)}>
-              수정하기
-            </button>
-          </li>
-        ))}
-      </ul>
-    </>
+        </Routes>
+      </div>
+    </Router>
   );
 }
 
