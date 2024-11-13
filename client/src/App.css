@@ -6,3 +6,15 @@
 .checkout-date:hover {
   background-color: #78c978 !important;
 }
+
+.am-reserved {
+  background: linear-gradient(135deg, #ff000033 50%, transparent 50%);
+}
+
+.pm-reserved {
+  background: linear-gradient(135deg, transparent 50%, #ff000033 50%);
+}
+
+.fully-reserved {
+  background: #ff000033;
+}
