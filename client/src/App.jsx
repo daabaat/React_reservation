@@ -29,10 +29,54 @@ function App() {
   }, []);
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); // 기본 폼 제출 방지
-    const newReservation = { checkin, checkout };
+    e.preventDefault();
 
     try {
+      const checkinDate = new Date(checkin);
+      const checkoutDate = new Date(checkout);
+      const reservations = [];
+
+      // 체크인 날짜 (PM)
+      reservations.push({
+        date: new Date(checkinDate.getTime() - 9 * 60 * 60 * 1000), // UTC 시간으로 변환
+        timeSlot: "PM",
+        isCheckIn: true,
+        isCheckOut: false,
+      });
+
+      // 중간 날짜들 (AM, PM 모두)
+      let currentDate = new Date(checkinDate);
+      currentDate.setDate(currentDate.getDate() + 1);
+
+      while (currentDate < checkoutDate) {
+        // UTC 시간으로 변환
+        const utcDate = new Date(currentDate.getTime() - 9 * 60 * 60 * 1000);
+
+        // AM 예약
+        reservations.push({
+          date: utcDate,
+          timeSlot: "AM",
+          isCheckIn: false,
+          isCheckOut: false,
+        });
+        // PM 예약
+        reservations.push({
+          date: utcDate,
+          timeSlot: "PM",
+          isCheckIn: false,
+          isCheckOut: false,
+        });
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      // 체크아웃 날짜 (AM)
+      reservations.push({
+        date: new Date(checkoutDate.getTime() - 9 * 60 * 60 * 1000), // UTC 시간으로 변환
+        timeSlot: "AM",
+        isCheckIn: false,
+        isCheckOut: true,
+      });
+
       const response = await fetch(
         "http://localhost:8080/api/reservations/create",
         {
@@ -40,35 +84,43 @@ function App() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(newReservation),
+          body: JSON.stringify({ reservations }), // 예약 데이터 배열 전송
         }
       );
 
       if (!response.ok) {
-        throw new Error("Network response was not ok");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "예약 생성에 실패했습니다.");
       }
 
-      const savedReservation = await response.json();
-      setReservations((prev) => [...prev, savedReservation]); // 새 예약 추가
-      setCheckin(""); // 입력 필드 초기화
-      setCheckout(""); // 입력 필드 초기화
+      const savedReservations = await response.json();
+      setReservations((prev) => [...prev, ...savedReservations]);
+      setCheckin("");
+      setCheckout("");
+      alert("예약이 성공적으로 생성되었습니다.");
     } catch (error) {
       console.error("Error creating reservation:", error);
+      alert(error.message);
     }
   };
 
   const tileDisabled = ({ date }) => {
     try {
-      // date 객체를 안전하게 처리
-      const formattedDate = new Date(date).toISOString().split("T")[0];
+      const koreaDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+      const formattedDate = koreaDate.toISOString().split("T")[0];
+
       const reservationsForDate = reservations.filter((r) => {
         if (!r.date) return false;
         const rDate = new Date(r.date);
-        return rDate.toISOString().split("T")[0] === formattedDate;
+        const koreaRDate = new Date(rDate.getTime() + 9 * 60 * 60 * 1000);
+        return koreaRDate.toISOString().split("T")[0] === formattedDate;
       });
 
-      // 해당 날짜의 AM, PM 모두 예약된 경우 비활성화
-      return reservationsForDate.length >= 2;
+      // AM과 PM 모두 예약된 경우에만 비활성화
+      const hasAM = reservationsForDate.some((r) => r.timeSlot === "AM");
+      const hasPM = reservationsForDate.some((r) => r.timeSlot === "PM");
+
+      return hasAM && hasPM;
     } catch (error) {
       console.error("Error in tileDisabled:", error);
       return false;
@@ -77,20 +129,22 @@ function App() {
 
   const tileClassName = ({ date }) => {
     try {
-      // date 객체를 안전하게 처리
-      const formattedDate = new Date(date).toISOString().split("T")[0];
+      const koreaDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+      const formattedDate = koreaDate.toISOString().split("T")[0];
+
       const reservationsForDate = reservations.filter((r) => {
         if (!r.date) return false;
         const rDate = new Date(r.date);
-        return rDate.toISOString().split("T")[0] === formattedDate;
+        const koreaRDate = new Date(rDate.getTime() + 9 * 60 * 60 * 1000);
+        return koreaRDate.toISOString().split("T")[0] === formattedDate;
       });
 
       if (reservationsForDate.length === 0) return "";
 
-      // AM/PM 예약 상태에 따른 클래스 반환
       const hasAM = reservationsForDate.some((r) => r.timeSlot === "AM");
       const hasPM = reservationsForDate.some((r) => r.timeSlot === "PM");
 
+      // 시각적으로 AM/PM 예약 상태 표시
       if (hasAM && hasPM) return "fully-reserved";
       if (hasAM) return "am-reserved";
       if (hasPM) return "pm-reserved";
@@ -164,24 +218,15 @@ function App() {
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ checkin, checkout }),
+            body: JSON.stringify({
+              date: checkin,
+              timeSlot: "PM", // 또는 "AM"
+              isCheckIn: true, // 상황에 따라 적절히 설정
+              isCheckOut: false, // 상황에 따라 적절히 설정
+            }),
           }
         );
-
-        if (!response.ok) {
-          throw new Error("Network response was not ok");
-        }
-
-        const updatedReservation = await response.json();
-        setReservations((prev) =>
-          prev.map((reservation) =>
-            reservation._id === updateId ? updatedReservation : reservation
-          )
-        );
-        setCheckin(""); // 입력 필드 초기화
-        setCheckout(""); // 입력 필드 초기화
-        setIsUpdating(false); // 수정 모드 종료
-        setUpdateId(null); // 수정할 예약 ID 초기화
+        // ... 나머지 코드
       } catch (error) {
         console.error("Error updating reservation:", error);
       }
@@ -229,8 +274,16 @@ function App() {
       <ul>
         {reservations.map((reservation, index) => (
           <li key={index}>
-            Check-in: {new Date(reservation.checkin).toLocaleString()} -
-            Check-out: {new Date(reservation.checkout).toLocaleString()}
+            {
+              new Date(
+                new Date(reservation.date).getTime() + 9 * 60 * 60 * 1000
+              )
+                .toISOString()
+                .split("T")[0]
+            }{" "}
+            {reservation.timeSlot}
+            {reservation.isCheckIn && " (체크인)"}
+            {reservation.isCheckOut && " (체크아웃)"}
             <button onClick={() => handleDelete(reservation._id)}>
               삭제하기
             </button>
