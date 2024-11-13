@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Route, Routes, Link } from "react-router-dom";
 import Calendar from "react-calendar/dist/cjs/Calendar.js";
 import "react-calendar/dist/Calendar.css";
 import LoginForm from "./components/LoginForm";
+import SearchForm from "./components/SearchForm";
 import {
   fetchReservations,
   createReservation,
@@ -193,10 +194,14 @@ function App() {
           <Link to="/login">
             <button>로그인</button>
           </Link>
+          <Link to="/search">
+            <button>검색</button>
+          </Link>
         </nav>
 
         <Routes>
           <Route path="/login" element={<LoginForm />} />
+          <Route path="/search" element={<SearchForm />} />
           <Route
             path="/"
             element={
@@ -242,17 +247,47 @@ function App() {
                 )}
                 <ul>
                   {reservations.map((reservation) => (
-                    <li key={reservation._id}>
-                      체크인:{" "}
-                      {new Date(reservation.startDate).toLocaleDateString()} PM
-                      ~ 체크아웃:{" "}
-                      {new Date(reservation.endDate).toLocaleDateString()} AM
-                      <button onClick={() => handleDelete(reservation._id)}>
-                        삭제하기
-                      </button>
-                      <button onClick={() => handleUpdate(reservation._id)}>
-                        수정하기
-                      </button>
+                    <li key={reservation._id} className="reservation-item">
+                      <div className="reservation-info">
+                        <h3>예약 정보</h3>
+                        <p>
+                          <strong>숙소:</strong>{" "}
+                          {reservation.accommodationId.name}
+                          <br />
+                          <strong>주소:</strong>{" "}
+                          {reservation.accommodationId.address}
+                          <br />
+                          <strong>가격:</strong>{" "}
+                          {reservation.accommodationId.price.toLocaleString()}원
+                          <br />
+                          <strong>지역:</strong>{" "}
+                          {reservation.accommodationId.region}
+                        </p>
+                        <p>
+                          <strong>예약자:</strong> {reservation.userId.name}
+                          <br />
+                          <strong>연락처:</strong> {reservation.userId.phone}
+                        </p>
+                        <p>
+                          <strong>체크인:</strong>{" "}
+                          {new Date(reservation.startDate).toLocaleDateString()}{" "}
+                          PM
+                          <br />
+                          <strong>체크아웃:</strong>{" "}
+                          {new Date(reservation.endDate).toLocaleDateString()}{" "}
+                          AM
+                          <br />
+                          <strong>인원:</strong> {reservation.person}명
+                        </p>
+                      </div>
+                      <div className="reservation-actions">
+                        <button onClick={() => handleDelete(reservation._id)}>
+                          삭제하기
+                        </button>
+                        <button onClick={() => handleUpdate(reservation._id)}>
+                          수정하기
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>

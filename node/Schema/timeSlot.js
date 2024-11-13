@@ -11,7 +11,6 @@ const timeSlotSchema = new mongoose.Schema({
       default: false,
     },
     reservationId: {
-      // 어떤 예약에 속하는지 참조
       type: mongoose.Schema.Types.ObjectId,
       ref: "Reservation",
       default: null,
@@ -23,7 +22,6 @@ const timeSlotSchema = new mongoose.Schema({
       default: false,
     },
     reservationId: {
-      // 어떤 예약에 속하는지 참조
       type: mongoose.Schema.Types.ObjectId,
       ref: "Reservation",
       default: null,

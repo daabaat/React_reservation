@@ -7,22 +7,12 @@ const mongoose = require("mongoose");
 // 예약 조회
 router.get("/reservations", async (req, res) => {
   try {
-    const reservations = await Reservation.find();
-    const detailedReservations = await Promise.all(
-      reservations.map(async (reservation) => {
-        const timeSlots = await TimeSlot.find({
-          $or: [
-            { "am.reservationId": reservation._id },
-            { "pm.reservationId": reservation._id },
-          ],
-        }).sort({ date: 1 });
-        return {
-          ...reservation.toObject(),
-          timeSlots,
-        };
-      })
-    );
-    res.status(200).json(detailedReservations);
+    const reservations = await Reservation.find()
+      .populate("accomodationId", "name address price region")
+      .populate("userId", "name phone")
+      .sort({ startDate: -1 });
+
+    res.status(200).json(reservations);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -118,11 +108,26 @@ router.put("/reservations/update/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const { startDate, endDate } = req.body;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
 
-    // 1. 기존 예약의 TimeSlot 초기화
+    // 1. 기존 예약 정보 조회
+    const oldReservation = await Reservation.findById(id);
+    if (!oldReservation) {
+      throw new Error("예약을 찾을 수 없습니다");
+    }
+
+    // 2. 기존 타임슬롯에서 예약 정보 제거
     await TimeSlot.updateMany(
       {
-        $or: [{ "am.reservationId": id }, { "pm.reservationId": id }],
+        date: {
+          $gte: oldReservation.startDate,
+          $lte: oldReservation.endDate,
+        },
+        $or: [
+          { "am.reservationId": oldReservation._id },
+          { "pm.reservationId": oldReservation._id },
+        ],
       },
       {
         $set: {
@@ -131,24 +136,51 @@ router.put("/reservations/update/:id", async (req, res) => {
           "pm.isReserved": false,
           "pm.reservationId": null,
         },
-      }
+      },
+      { session }
     );
 
-    // 2. 새로운 날짜에 대한 예약 가능 여부 확인
-    // (create 라우트와 동일한 검증 로직)
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    // ... 예약 가능 여부 확인 로직
-
-    // 3. 예약 정보 업데이트
+    // 3. 새로운 날짜로 예약 수정
     const updatedReservation = await Reservation.findByIdAndUpdate(
       id,
       { startDate: start, endDate: end },
-      { new: true }
+      { new: true, session }
     );
 
-    // 4. 새로운 TimeSlot 생성 또는 업데이트
-    // (create 라우트와 동일한 TimeSlot 생성 로직)
+    // 4. 새로운 타임슬롯 생성 또는 업데이트
+    const dates = [];
+    let currentDate = new Date(start);
+    while (currentDate <= end) {
+      dates.push(new Date(currentDate));
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    for (const date of dates) {
+      let timeSlot = await TimeSlot.findOne({ date }).session(session);
+      if (!timeSlot) {
+        timeSlot = new TimeSlot({ date });
+      }
+
+      // 체크인 날짜인 경우
+      if (date.getTime() === start.getTime()) {
+        timeSlot.pm.isReserved = true;
+        timeSlot.pm.reservationId = updatedReservation._id;
+      }
+      // 체크아웃 날짜인 경우
+      else if (date.getTime() === end.getTime()) {
+        timeSlot.am.isReserved = true;
+        timeSlot.am.reservationId = updatedReservation._id;
+      }
+      // 중간 날짜들
+      else {
+        timeSlot.am.isReserved = true;
+        timeSlot.pm.isReserved = true;
+        timeSlot.am.reservationId = updatedReservation._id;
+        timeSlot.pm.reservationId = updatedReservation._id;
+      }
+
+      await timeSlot.save({ session });
+    }
 
     await session.commitTransaction();
     res.status(200).json(updatedReservation);

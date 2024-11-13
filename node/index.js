@@ -11,8 +11,8 @@ const app = express();
 
 // MongoDB 연결 설정
 const url =
-  "mongodb+srv://lllllls189:1234@dabat.robui.mongodb.net/reservation?retryWrites=true&w=majority&appName=dabat";
-
+  // "mongodb+srv://lllllls189:1234@dabat.robui.mongodb.net/reservation?retryWrites=true&w=majority&appName=dabat";
+  "mongodb+srv://choncance:tmakxmdnpqdoq5!@choncance.nr4zf.mongodb.net/mydb?retryWrites=true&w=majority&appName=choncance";
 mongoose
   .connect(url)
   .then(() => {
