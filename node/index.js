@@ -3,6 +3,9 @@ const cors = require("cors");
 const morgan = require("morgan");
 const mongoose = require("mongoose");
 const reservationRoutes = require("./routes/reservationRoute");
+const timeSlotRoutes = require("./routes/timeSlotRoute");
+const accommodationRoutes = require("./routes/accommodationRoute");
+const userRoutes = require("./routes/userRoute");
 
 const app = express();
 
@@ -23,7 +26,10 @@ app.use(cors());
 app.use(morgan("dev"));
 app.use(express.json());
 
-app.use("/api", reservationRoutes);
+app.use("/", reservationRoutes);
+app.use("/", timeSlotRoutes);
+app.use("/", accommodationRoutes);
+app.use("/", userRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });

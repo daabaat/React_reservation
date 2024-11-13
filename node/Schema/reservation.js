@@ -1,22 +1,36 @@
 const mongoose = require("mongoose");
 
 const reservationSchema = new mongoose.Schema({
-  date: {
+  accomodationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Accommodation",
+    required: true,
+  },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+  startDate: {
     type: Date,
     required: true,
   },
-  timeSlot: {
-    type: String,
-    enum: ["AM", "PM"],
+  endDate: {
+    type: Date,
     required: true,
   },
-  isCheckIn: {
-    type: Boolean,
+  person: {
+    type: Number,
     required: true,
   },
-  isCheckOut: {
+
+  state: {
     type: Boolean,
-    required: true,
+    default: false,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
   },
 });
 
