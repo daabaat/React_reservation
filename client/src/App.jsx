@@ -103,10 +103,25 @@ function App() {
         fetchTimeSlots(),
       ]);
 
-      setReservations(reservationsData);
-      setTimeSlots(timeSlotsData);
+      if (Array.isArray(reservationsData)) {
+        console.log("받아온 예약 데이터:", reservationsData);
+        setReservations(reservationsData);
+      } else {
+        console.error("예약 데이터 형식이 잘못되었습니다:", reservationsData);
+        setReservations([]);
+      }
+
+      if (Array.isArray(timeSlotsData)) {
+        setTimeSlots(timeSlotsData);
+      } else {
+        console.error("타임슬롯 데이터 형식이 잘못되었습니다:", timeSlotsData);
+        setTimeSlots([]);
+      }
     } catch (error) {
+      console.error("데이터 조회 실패:", error);
       alert("데이터 조회에 실패했습니다");
+      setReservations([]);
+      setTimeSlots([]);
     }
   };
 
@@ -250,24 +265,33 @@ function App() {
                     <li key={reservation._id} className="reservation-item">
                       <div className="reservation-info">
                         <h3>예약 정보</h3>
-                        <p>
-                          <strong>숙소:</strong>{" "}
-                          {reservation.accommodationId.name}
-                          <br />
-                          <strong>주소:</strong>{" "}
-                          {reservation.accommodationId.address}
-                          <br />
-                          <strong>가격:</strong>{" "}
-                          {reservation.accommodationId.price.toLocaleString()}원
-                          <br />
-                          <strong>지역:</strong>{" "}
-                          {reservation.accommodationId.region}
-                        </p>
-                        <p>
-                          <strong>예약자:</strong> {reservation.userId.name}
-                          <br />
-                          <strong>연락처:</strong> {reservation.userId.phone}
-                        </p>
+                        {reservation.accommodationId ? (
+                          <>
+                            <p>
+                              <strong>숙소:</strong>{" "}
+                              {reservation.accommodationId.name}
+                              <br />
+                              <strong>주소:</strong>{" "}
+                              {reservation.accommodationId.address}
+                              <br />
+                              <strong>가격:</strong>{" "}
+                              {reservation.accommodationId.price?.toLocaleString()}
+                              원
+                              <br />
+                              <strong>지역:</strong>{" "}
+                              {reservation.accommodationId.region}
+                            </p>
+                            <p>
+                              <strong>예약자:</strong>{" "}
+                              {reservation.userId?.name || "정보 없음"}
+                              <br />
+                              <strong>연락처:</strong>{" "}
+                              {reservation.userId?.phone || "정보 없음"}
+                            </p>
+                          </>
+                        ) : (
+                          <p>숙소 정보를 불러오는 중...</p>
+                        )}
                         <p>
                           <strong>체크인:</strong>{" "}
                           {new Date(reservation.startDate).toLocaleDateString()}{" "}

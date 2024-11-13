@@ -8,7 +8,7 @@ const mongoose = require("mongoose");
 router.get("/reservations", async (req, res) => {
   try {
     const reservations = await Reservation.find()
-      .populate("accomodationId", "name address price region")
+      .populate("accommodationId", "name address price region")
       .populate("userId", "name phone")
       .sort({ startDate: -1 });
 
