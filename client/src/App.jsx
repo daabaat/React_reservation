@@ -58,27 +58,48 @@ function App() {
   };
 
   const tileDisabled = ({ date }) => {
-    return reservations.some((reservation) => {
-      const checkinDate = new Date(reservation.checkin);
-      return (
-        date.getDate() === checkinDate.getDate() &&
-        date.getMonth() === checkinDate.getMonth() &&
-        date.getFullYear() === checkinDate.getFullYear()
-      );
-    });
+    try {
+      // date 객체를 안전하게 처리
+      const formattedDate = new Date(date).toISOString().split("T")[0];
+      const reservationsForDate = reservations.filter((r) => {
+        if (!r.date) return false;
+        const rDate = new Date(r.date);
+        return rDate.toISOString().split("T")[0] === formattedDate;
+      });
+
+      // 해당 날짜의 AM, PM 모두 예약된 경우 비활성화
+      return reservationsForDate.length >= 2;
+    } catch (error) {
+      console.error("Error in tileDisabled:", error);
+      return false;
+    }
   };
 
   const tileClassName = ({ date }) => {
-    const isCheckoutDate = reservations.some((reservation) => {
-      const checkoutDate = new Date(reservation.checkout);
-      return (
-        date.getDate() === checkoutDate.getDate() &&
-        date.getMonth() === checkoutDate.getMonth() &&
-        date.getFullYear() === checkoutDate.getFullYear()
-      );
-    });
+    try {
+      // date 객체를 안전하게 처리
+      const formattedDate = new Date(date).toISOString().split("T")[0];
+      const reservationsForDate = reservations.filter((r) => {
+        if (!r.date) return false;
+        const rDate = new Date(r.date);
+        return rDate.toISOString().split("T")[0] === formattedDate;
+      });
 
-    return isCheckoutDate ? "checkout-date" : "";
+      if (reservationsForDate.length === 0) return "";
+
+      // AM/PM 예약 상태에 따른 클래스 반환
+      const hasAM = reservationsForDate.some((r) => r.timeSlot === "AM");
+      const hasPM = reservationsForDate.some((r) => r.timeSlot === "PM");
+
+      if (hasAM && hasPM) return "fully-reserved";
+      if (hasAM) return "am-reserved";
+      if (hasPM) return "pm-reserved";
+
+      return "";
+    } catch (error) {
+      console.error("Error in tileClassName:", error);
+      return "";
+    }
   };
 
   const handleDelete = async (id) => {
@@ -114,17 +135,21 @@ function App() {
   };
 
   const handleDateChange = (date, isCheckIn = true) => {
-    // 날짜를 UTC 기준으로 변환하여 시간대 차이 해결
-    const selectedDate = new Date(date);
-    selectedDate.setDate(selectedDate.getDate() + 1); // 하루를 더해서 보정
-    const formattedDate = selectedDate.toISOString().split("T")[0];
+    try {
+      const selectedDate = new Date(date);
+      // 시간대 차이 보정
+      selectedDate.setHours(0, 0, 0, 0);
+      const formattedDate = selectedDate.toISOString().split("T")[0];
 
-    if (isCheckIn) {
-      setCheckin(formattedDate);
-      console.log("체크인 날짜:", formattedDate);
-    } else {
-      setCheckout(formattedDate);
-      console.log("체크아웃 날짜:", formattedDate);
+      if (isCheckIn) {
+        setCheckin(formattedDate);
+        console.log("체크인 날짜:", formattedDate);
+      } else {
+        setCheckout(formattedDate);
+        console.log("체크아웃 날짜:", formattedDate);
+      }
+    } catch (error) {
+      console.error("Error in handleDateChange:", error);
     }
   };
 
